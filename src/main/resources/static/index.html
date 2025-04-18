@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>任务管理系统</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #444;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        form {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        form div {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.delete {
+            background-color: #f44336;
+        }
+        button.delete:hover {
+            background-color: #d32f2f;
+        }
+        button.progress {
+            background-color: #2196F3;
+        }
+        button.progress:hover {
+            background-color: #0b7dda;
+        }
+        button.complete {
+            background-color: #ff9800;
+        }
+        button.complete:hover {
+            background-color: #e68a00;
+        }
+        .task-item {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        .task-title {
+            margin-top: 0;
+            color: #333;
+        }
+        .task-info {
+            color: #666;
+            margin: 5px 0;
+        }
+        .task-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .status-not-started {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+        .status-in-progress {
+            background-color: #bbdefb;
+            color: #0d47a1;
+        }
+        .status-completed {
+            background-color: #c8e6c9;
+            color: #1b5e20;
+        }
+        .task-actions {
+            margin-top: 10px;
+        }
+        .filter-section {
+            margin-bottom: 20px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+    </style>
+    <script>
+        // 获取所有任务
+        function getTasks(status = '') {
+            let url = '/api/tasks';
+            if (status) {
+                url = `/api/tasks/status/${status}`;
+            }
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const taskList = document.getElementById('taskList');
+                    taskList.innerHTML = '';
+                    
+                    if (data.length === 0) {
+                        taskList.innerHTML = '<p>暂无任务</p>';
+                        return;
+                    }
+                    
+                    data.forEach(task => {
+                        let statusClass = '';
+                        let statusText = '';
+                        
+                        switch(task.status) {
+                            case 'NOT_STARTED':
+                                statusClass = 'status-not-started';
+                                statusText = '未开始';
+                                break;
+                            case 'IN_PROGRESS':
+                                statusClass = 'status-in-progress';
+                                statusText = '进行中';
+                                break;
+                            case 'COMPLETED':
+                                statusClass = 'status-completed';
+                                statusText = '已完成';
+                                break;
+                        }
+                        
+                        taskList.innerHTML += `
+                            <div class="task-item">
+                                <h3 class="task-title">${task.title}</h3>
+                                <p class="task-info">${task.description}</p>
+                                <p class="task-info">截止日期: ${task.dueDate}</p>
+                                <span class="task-status ${statusClass}">状态: ${statusText}</span>
+                                <div class="task-actions">
+                                    <button class="delete" onclick="deleteTask(${task.id})">删除</button>
+                                    <button class="progress" onclick="updateStatus(${task.id}, 'IN_PROGRESS')">标记为进行中</button>
+                                    <button class="complete" onclick="updateStatus(${task.id}, 'COMPLETED')">标记为已完成</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                })
+                .catch(error => {
+                    console.error('获取任务失败:', error);
+                    document.getElementById('taskList').innerHTML = '<p>获取任务失败，请稍后再试</p>';
+                });
+        }
+
+        // 创建新任务
+        function createTask() {
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const dueDate = document.getElementById('dueDate').value;
+            
+            if (!title || !dueDate) {
+                alert('请填写标题和截止日期');
+                return;
+            }
+            
+            fetch('/api/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: title,
+                    description: description,
+                    dueDate: dueDate,
+                    status: 'NOT_STARTED'
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('创建任务失败');
+                }
+                return response.json();
+            })
+            .then(data => {
+                getTasks(document.getElementById('statusFilter').value);
+                document.getElementById('taskForm').reset();
+                alert('任务创建成功！');
+            })
+            .catch(error => {
+                console.error('创建任务失败:', error);
+                alert('创建任务失败，请稍后再试');
+            });
+        }
+
+        // 更新任务状态
+        function updateStatus(id, status) {
+            fetch(`/api/tasks/${id}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    status: status
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('更新任务状态失败');
+                }
+                return response.json();
+            })
+            .then(data => {
+                getTasks(document.getElementById('statusFilter').value);
+            })
+            .catch(error => {
+                console.error('更新任务状态失败:', error);
+                alert('更新任务状态失败，请稍后再试');
+            });
+        }
+
+        // 删除任务
+        function deleteTask(id) {
+            if (confirm('确定要删除这个任务吗？')) {
+                fetch(`/api/tasks/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('删除任务失败');
+                    }
+                    getTasks(document.getElementById('statusFilter').value);
+                    alert('任务已删除');
+                })
+                .catch(error => {
+                    console.error('删除任务失败:', error);
+                    alert('删除任务失败，请稍后再试');
+                });
+            }
+        }
+
+        // 过滤任务
+        function filterTasks() {
+            const status = document.getElementById('statusFilter').value;
+            getTasks(status);
+        }
+
+        // 页面加载时获取任务
+        window.onload = function() {
+            getTasks();
+        };
+    </script>
+</head>
+<body>
+    <h1>任务管理系统</h1>
+    
+    <h2>创建新任务</h2>
+    <form id="taskForm">
+        <div>
+            <label for="title">标题:</label>
+            <input type="text" id="title" required>
+        </div>
+        <div>
+            <label for="description">描述:</label>
+            <textarea id="description"></textarea>
+        </div>
+        <div>
+            <label for="dueDate">截止日期:</label>
+            <input type="date" id="dueDate" required>
+        </div>
+        <button type="button" onclick="createTask()">创建任务</button>
+    </form>
+    
+    <div class="filter-section">
+        <h2>任务列表</h2>
+        <div>
+            <label for="statusFilter">按状态筛选:</label>
+            <select id="statusFilter" onchange="filterTasks()">
+                <option value="">全部任务</option>
+                <option value="NOT_STARTED">未开始</option>
+                <option value="IN_PROGRESS">进行中</option>
+                <option value="COMPLETED">已完成</option>
+            </select>
+        </div>
+    </div>
+    
+    <div id="taskList"></div>
+</body>
+</html>

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>任务管理系统</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .logout-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .logout-btn:hover {
+            background-color: #d32f2f;
+        }
+        .task-list {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .task-list th, .task-list td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .task-list th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .task-list tr:hover {
+            background-color: #f5f5f5;
+        }
+        .status-todo {
+            color: #ff9800;
+        }
+        .status-in_progress {
+            color: #2196F3;
+        }
+        .status-completed {
+            color: #4CAF50;
+        }
+        .add-task-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .add-task-btn:hover {
+            background-color: #45a049;
+        }
+        .action-btn {
+            margin-right: 5px;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .edit-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>任务管理系统</h1>
+            <form action="/perform_logout" method="post">
+                <button type="submit" class="logout-btn">退出登录</button>
+            </form>
+        </div>
+        
+        <button class="add-task-btn" id="addTaskBtn">添加新任务</button>
+        
+        <!-- 添加任务模态框 -->
+        <div id="taskModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2 id="modalTitle">添加新任务</h2>
+                <form id="taskForm">
+                    <input type="hidden" id="taskId" value="">
+                    <div class="form-group">
+                        <label for="taskTitle">标题:</label>
+                        <input type="text" id="taskTitle" name="title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="taskDescription">描述:</label>
+                        <textarea id="taskDescription" name="description" rows="4" required></textarea>
+                    </div>
+                    <!-- 在表单中修改状态选项 -->
+                    <div class="form-group">
+                        <label for="taskStatus">状态:</label>
+                        <select id="taskStatus" name="status">
+                            <option value="NOT_STARTED">待办</option>
+                            <option value="IN_PROGRESS">进行中</option>
+                            <option value="COMPLETED">已完成</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="submit-btn">保存</button>
+                </form>
+            </div>
+        </div>
+        
+        <table class="task-list">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>标题</th>
+                    <th>描述</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="taskTableBody">
+                <!-- 任务数据将通过JavaScript动态加载 -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 添加CSS样式 -->
+    <style>
+        /* 现有样式保持不变 */
+        
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 50%;
+            border-radius: 5px;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .submit-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .submit-btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+
+    <script>
+        // 页面加载完成后获取任务列表
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchTasks();
+            
+            // 获取模态框元素
+            const modal = document.getElementById('taskModal');
+            const addTaskBtn = document.getElementById('addTaskBtn');
+            const closeBtn = document.getElementsByClassName('close')[0];
+            const taskForm = document.getElementById('taskForm');
+            const modalTitle = document.getElementById('modalTitle');
+            
+            // 点击添加任务按钮打开模态框
+            addTaskBtn.addEventListener('click', function() {
+                modalTitle.textContent = '添加新任务';
+                document.getElementById('taskId').value = '';
+                modal.style.display = 'block';
+                // 重置表单
+                taskForm.reset();
+            });
+            
+            // 点击关闭按钮关闭模态框
+            closeBtn.addEventListener('click', function() {
+                modal.style.display = 'none';
+            });
+            
+            // 点击模态框外部关闭模态框
+            window.addEventListener('click', function(event) {
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            });
+            
+            // 提交表单
+            taskForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                
+                // 获取表单数据
+                const taskId = document.getElementById('taskId').value;
+                const title = document.getElementById('taskTitle').value;
+                const description = document.getElementById('taskDescription').value;
+                const status = document.getElementById('taskStatus').value;
+                
+                // 创建任务对象
+                const task = {
+                    title: title,
+                    description: description,
+                    status: status
+                };
+                
+                let url = '/api/tasks';
+                let method = 'POST';
+                
+                // 如果有任务ID，则是编辑现有任务
+                if (taskId) {
+                    url = `/api/tasks/${taskId}`;
+                    method = 'PUT';
+                }
+                
+                // 发送请求创建或更新任务
+                fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(task)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error(taskId ? '更新任务失败' : '创建任务失败');
+                })
+                .then(data => {
+                    // 关闭模态框
+                    modal.style.display = 'none';
+                    // 重新获取任务列表
+                    fetchTasks();
+                    // 显示成功消息
+                    alert(taskId ? '任务更新成功！' : '任务创建成功！');
+                })
+                .catch(error => {
+                    console.error(error.message, error);
+                    alert(error.message + '，请重试！');
+                });
+            });
+        });
+        
+        // 获取任务列表
+        function fetchTasks() {
+            fetch('/api/tasks')
+                .then(response => response.json())
+                .then(tasks => {
+                    const tableBody = document.getElementById('taskTableBody');
+                    tableBody.innerHTML = '';
+                    
+                    tasks.forEach(task => {
+                        const row = document.createElement('tr');
+                        
+                        // 设置任务状态的样式类
+                        const statusClass = 'status-' + task.status.toLowerCase();
+                        
+                        row.innerHTML = `
+                            <td>${task.id}</td>
+                            <td>${task.title}</td>
+                            <td>${task.description}</td>
+                            <td class="${statusClass}">${formatStatus(task.status)}</td>
+                            <td>${formatDate(task.createdAt)}</td>
+                            <td>
+                                <button class="action-btn edit-btn" onclick="editTask(${task.id})">编辑</button>
+                                <button class="action-btn delete-btn" onclick="deleteTask(${task.id})">删除</button>
+                            </td>
+                        `;
+                        
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    console.error('获取任务列表失败:', error);
+                });
+        }
+        
+        // 格式化任务状态
+        function formatStatus(status) {
+            switch(status) {
+                case 'TODO': return '待办';
+                case 'IN_PROGRESS': return '进行中';
+                case 'COMPLETED': return '已完成';
+                default: return status;
+            }
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleString('zh-CN');
+        }
+        
+        // 编辑任务
+        function editTask(taskId) {
+            // 获取任务详情
+            fetch(`/api/tasks/${taskId}`)
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('获取任务详情失败');
+                })
+                .then(task => {
+                    // 填充表单
+                    document.getElementById('taskId').value = task.id;
+                    document.getElementById('taskTitle').value = task.title;
+                    document.getElementById('taskDescription').value = task.description;
+                    document.getElementById('taskStatus').value = task.status;
+                    
+                    // 更改模态框标题
+                    document.getElementById('modalTitle').textContent = '编辑任务';
+                    
+                    // 显示模态框
+                    document.getElementById('taskModal').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('获取任务详情失败:', error);
+                    alert('获取任务详情失败，请重试！');
+                });
+        }
+        
+        // 删除任务
+        function deleteTask(taskId) {
+            if (confirm('确定要删除这个任务吗？')) {
+                fetch(`/api/tasks/${taskId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        fetchTasks(); // 重新加载任务列表
+                    } else {
+                        alert('删除任务失败');
+                    }
+                })
+                .catch(error => {
+                    console.error('删除任务失败:', error);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
